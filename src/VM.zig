@@ -3,7 +3,7 @@ const STACK_MAX = 256;
 
 pub const Error = error{
     CompileError,
-    InterpretError,
+    RuntimeError,
 };
 
 collector: *Collector,
@@ -42,11 +42,17 @@ pub fn deinit(self: *VM) void {
     self.collector.free(self.stack);
 }
 
-pub fn interpret(self: *VM, chunk: *root.Chunk) !void {
+pub fn interpret(self: *VM, source: []const u8) !void {
+    var compiler = try Compiler.init(self.collector);
+    defer compiler.deinit();
+
+    const chunk = try compiler.compile(source);
     self.chunk = chunk;
     self.ip = chunk.code.items;
 
-    return self.run();
+    return error.RuntimeError;
+
+    // return self.run();
 }
 
 inline fn readByte(self: *VM) u8 {
@@ -98,6 +104,7 @@ pub fn run(self: *VM) !void {
 const std = @import("std");
 const root = @import("root");
 
+const Compiler = root.Compiler;
 const Collector = root.Collector;
 const OpCode = root.Chunk.OpCode;
 const Value = root.Value;
