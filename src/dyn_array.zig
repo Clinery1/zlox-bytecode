@@ -8,7 +8,7 @@ pub fn DynArray(comptime T: type) type {
             const slice = try collector.reallocSlice(T, &[0]T{}, growArray(0));
             return .{
                 .collector = collector,
-                .capacity = growArray(0),
+                .capacity = slice.len,
                 .items = slice[0..0],
             };
         }
@@ -17,7 +17,7 @@ pub fn DynArray(comptime T: type) type {
             const slice = try collector.reallocSliceRoot(T, &[0]T{}, growArray(0));
             return .{
                 .collector = collector,
-                .capacity = growArray(0),
+                .capacity = slice.len,
                 .items = slice[0..0],
             };
         }
@@ -33,19 +33,18 @@ pub fn DynArray(comptime T: type) type {
 
         pub fn append(self: *@This(), item: T) !void {
             if (self.items.len == self.capacity) {
-                self.capacity = growArray(self.capacity);
                 const old_len = self.items.len;
-                self.items = try self.collector.reallocSlice(
+                const new_slice = try self.collector.reallocSlice(
                     T,
-                    self.items,
-                    self.capacity,
+                    self.allocatorSlice(),
+                    growArray(self.capacity),
                 );
-                self.items.len = old_len;
+                self.capacity = new_slice.len;
+                self.items = new_slice[0..old_len];
             }
             std.debug.assert(self.items.len < self.capacity);
-            const index = self.items.len;
             self.items.len += 1;
-            self.items[index] = item;
+            self.items[self.items.len - 1] = item;
         }
     };
 }

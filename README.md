@@ -8,6 +8,7 @@ semantics (can literally transpile to/from C with Zig).
 
 # Completed chapters
 - Chapter 14: Chunks of Bytecode
+- Chapter 15: A Virtual Machine
 
 
 # Major changes compared to cLox

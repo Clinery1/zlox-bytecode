@@ -31,7 +31,8 @@ pub inline fn reallocSlice(self: *Collector, comptime T: type, slice: []T, new_l
 }
 
 pub inline fn reallocSliceRoot(self: *Collector, comptime T: type, slice: []T, new_len: usize) ![]T {
-    return self.reallocSliceOptions(T, slice, new_len, .root);
+    const val = try self.reallocSliceOptions(T, slice, new_len, .root);
+    return val;
 }
 
 pub fn reallocSliceOptions(self: *Collector, comptime T: type, slice: []T, new_len: usize, root_status: ?RootStatus) ![]T {
@@ -39,16 +40,16 @@ pub fn reallocSliceOptions(self: *Collector, comptime T: type, slice: []T, new_l
         return error.CannotFreeFromRealloc;
     }
 
-    if (new_len < slice.len) {
+    if (new_len < slice.len or new_len == slice.len) {
         return slice;
     }
 
     const data_ptr = try self.backing.alloc(T, new_len);
 
-    std.mem.copyForwards(T, data_ptr, slice);
+    const new_addr = @intFromPtr(data_ptr.ptr);
+    const old_addr = @intFromPtr(slice.ptr);
 
-    const new_addr = @intFromPtr(&data_ptr);
-    const old_addr = @intFromPtr(&slice);
+    std.mem.copyForwards(T, data_ptr, slice);
 
     if (self.blocks.fetchRemove(old_addr)) |kv| {
         var block = kv.value;
@@ -57,9 +58,7 @@ pub fn reallocSliceOptions(self: *Collector, comptime T: type, slice: []T, new_l
         }
         block.slice_len = new_len;
         try self.blocks.put(new_addr, block);
-        if (slice.len > 0) {
-            self.backing.free(slice);
-        }
+        self.backing.free(slice);
     } else {
         try self.blocks.put(new_addr, .{
             .root = root_status orelse .not_root,
@@ -72,7 +71,7 @@ pub fn reallocSliceOptions(self: *Collector, comptime T: type, slice: []T, new_l
 }
 
 pub fn free(self: *Collector, slice: anytype) void {
-    const addr = @intFromPtr(&slice);
+    const addr = @intFromPtr(slice.ptr);
     _ = self.blocks.remove(addr);
     self.backing.free(slice);
 }
